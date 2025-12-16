@@ -1,9 +1,22 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+// Safely retrieve API Key to prevent "process is not defined" crashes in browser
+const getApiKey = () => {
+  try {
+    if (typeof process !== 'undefined' && process.env) {
+      return process.env.API_KEY || '';
+    }
+  } catch (e) {
+    // Ignore error if process is not available
+  }
+  return '';
+};
+
+const apiKey = getApiKey();
+const ai = new GoogleGenAI({ apiKey });
 
 export const getCleaningTip = async (): Promise<string> => {
-  if (!process.env.API_KEY) {
+  if (!apiKey) {
     return "Adicione sua API Key do Gemini para receber dicas personalizadas!";
   }
 

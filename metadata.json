@@ -1,0 +1,5 @@
+{
+  "name": "MonteverdeClean",
+  "description": "Aplicativo inteligente de escala de limpeza para condomínios com 6 apartamentos. Gerencia a rotação semanal e fornece dicas de limpeza via IA.",
+  "requestFramePermissions": []
+}

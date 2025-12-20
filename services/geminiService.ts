@@ -1,34 +1,17 @@
 import { GoogleGenAI } from "@google/genai";
 
-// Safely retrieve API Key to prevent "process is not defined" crashes in browser
-const getApiKey = () => {
-  try {
-    if (typeof process !== 'undefined' && process.env) {
-      return process.env.API_KEY || '';
-    }
-  } catch (e) {
-    // Ignore error if process is not available
-  }
-  return '';
-};
-
-const apiKey = getApiKey();
-const ai = new GoogleGenAI({ apiKey });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const getCleaningTip = async (): Promise<string> => {
-  if (!apiKey) {
-    return "Adicione sua API Key do Gemini para receber dicas personalizadas!";
-  }
-
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: "Gere uma dica curta (máximo 30 palavras), útil e motivadora sobre limpeza de áreas comuns de condomínio ou organização. Linguagem: Português do Brasil. Tom: Amigável e cooperativo. Retorne apenas o texto da dica.",
+      model: 'gemini-3-flash-preview',
+      contents: "Gere uma dica de limpeza ou organização para áreas comuns de condomínio (corredores, escadas, garagem ou lixeira). A dica deve ser curta (máximo 25 palavras), motivadora e prática. Linguagem: Português do Brasil. Retorne apenas o texto da dica, sem aspas.",
     });
 
-    return response.text || "Mantenha o condomínio limpo para o bem-estar de todos!";
+    return response.text || "Pequenas ações diárias mantêm nosso espaço comum impecável para todos.";
   } catch (error) {
-    console.error("Error fetching tip:", error);
-    return "A colaboração é a chave para um condomínio organizado.";
+    console.error("Erro ao buscar dica do Gemini:", error);
+    return "A colaboração e o respeito ao cronograma garantem um ambiente melhor para todos os moradores.";
   }
 };

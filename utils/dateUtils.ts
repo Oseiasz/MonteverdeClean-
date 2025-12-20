@@ -31,14 +31,11 @@ export const generateSchedule = (
   const referenceDate = startFromDate ? new Date(startFromDate) : new Date();
   referenceDate.setHours(0, 0, 0, 0);
   
-  // Get start of the reference week
   const { start: startWeek } = getWeekRange(referenceDate);
 
-  // Calculate offset from the absolute cycle start date
   const oneDay = 24 * 60 * 60 * 1000;
   
   for (let i = 0; i < weeksToGenerate; i++) {
-    // Calculate the start date for this iteration's week
     const weekStart = new Date(startWeek);
     weekStart.setDate(startWeek.getDate() + (i * 7));
     
@@ -53,17 +50,19 @@ export const generateSchedule = (
     let aptIndex = weeksPassed % totalApartments;
     if (aptIndex < 0) aptIndex = totalApartments + aptIndex;
 
-    // Check if this specific item is the actual current week relative to real today
     const realToday = new Date();
     const { start: realCurrentWeekStart } = getWeekRange(realToday);
     const isCurrentWeek = weekStart.getTime() === realCurrentWeekStart.getTime();
 
-    schedule.push({
-      startDate: weekStart,
-      endDate: weekEnd,
-      apartment: apartments[aptIndex],
-      isCurrentWeek: isCurrentWeek,
-    });
+    // Filtro para garantir que só mostramos 2026 se a data de referência for o ciclo
+    if (weekStart.getFullYear() === 2026) {
+      schedule.push({
+        startDate: weekStart,
+        endDate: weekEnd,
+        apartment: apartments[aptIndex],
+        isCurrentWeek: isCurrentWeek,
+      });
+    }
   }
 
   return schedule;
@@ -84,11 +83,13 @@ export const generatePastSchedule = (
   const { start: currentWeekStart } = getWeekRange(today);
   const oneDay = 24 * 60 * 60 * 1000;
 
-  // Loop backwards from 1 (last week) to weeksBack
   for (let i = 1; i <= weeksBack; i++) {
     const weekStart = new Date(currentWeekStart);
     weekStart.setDate(currentWeekStart.getDate() - (i * 7));
     
+    // Se a data retroceder para antes do ciclo (2025), ignoramos
+    if (weekStart < cycleStart) continue;
+
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
 

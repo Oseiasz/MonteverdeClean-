@@ -2,13 +2,11 @@ import { Apartment, ScheduleItem } from '../types';
 
 export const getWeekRange = (date: Date): { start: Date; end: Date } => {
   const current = new Date(date);
-  // Normalize to midnight
   current.setHours(0, 0, 0, 0);
   
-  // Assuming week starts on Monday as requested (Day 1)
-  // getDay() returns 0 for Sunday, 1 for Monday.
   const day = current.getDay();
-  const diff = current.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+  // Ajuste para segunda-feira como início da semana (ISO)
+  const diff = current.getDate() - day + (day === 0 ? -6 : 1);
   
   const start = new Date(current.setDate(diff));
   const end = new Date(start);
@@ -27,12 +25,10 @@ export const generateSchedule = (
   const cycleStart = new Date(cycleStartDateStr);
   cycleStart.setHours(0, 0, 0, 0);
 
-  // Use provided start date or default to today
   const referenceDate = startFromDate ? new Date(startFromDate) : new Date();
   referenceDate.setHours(0, 0, 0, 0);
   
   const { start: startWeek } = getWeekRange(referenceDate);
-
   const oneDay = 24 * 60 * 60 * 1000;
   
   for (let i = 0; i < weeksToGenerate; i++) {
@@ -42,11 +38,12 @@ export const generateSchedule = (
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
 
-    // Calculate which apartment index it is
     const diffDays = Math.round((weekStart.getTime() - cycleStart.getTime()) / oneDay);
     const weeksPassed = Math.floor(diffDays / 7);
     
     const totalApartments = apartments.length;
+    if (totalApartments === 0) return [];
+    
     let aptIndex = weeksPassed % totalApartments;
     if (aptIndex < 0) aptIndex = totalApartments + aptIndex;
 
@@ -54,15 +51,12 @@ export const generateSchedule = (
     const { start: realCurrentWeekStart } = getWeekRange(realToday);
     const isCurrentWeek = weekStart.getTime() === realCurrentWeekStart.getTime();
 
-    // Filtro para garantir que só mostramos 2026 se a data de referência for o ciclo
-    if (weekStart.getFullYear() === 2026) {
-      schedule.push({
-        startDate: weekStart,
-        endDate: weekEnd,
-        apartment: apartments[aptIndex],
-        isCurrentWeek: isCurrentWeek,
-      });
-    }
+    schedule.push({
+      startDate: weekStart,
+      endDate: weekEnd,
+      apartment: apartments[aptIndex],
+      isCurrentWeek: isCurrentWeek,
+    });
   }
 
   return schedule;
@@ -87,7 +81,6 @@ export const generatePastSchedule = (
     const weekStart = new Date(currentWeekStart);
     weekStart.setDate(currentWeekStart.getDate() - (i * 7));
     
-    // Se a data retroceder para antes do ciclo (2025), ignoramos
     if (weekStart < cycleStart) continue;
 
     const weekEnd = new Date(weekStart);
@@ -97,6 +90,8 @@ export const generatePastSchedule = (
     const weeksPassed = Math.floor(diffDays / 7);
     
     const totalApartments = apartments.length;
+    if (totalApartments === 0) continue;
+    
     let aptIndex = weeksPassed % totalApartments;
     if (aptIndex < 0) aptIndex = totalApartments + aptIndex;
 

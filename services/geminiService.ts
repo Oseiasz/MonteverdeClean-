@@ -1,9 +1,13 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 export const getCleaningTip = async (): Promise<string> => {
   try {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      throw new Error("API Key não configurada");
+    }
+    
+    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: "Gere uma dica de limpeza ou organização para áreas comuns de condomínio (corredores, escadas, garagem ou lixeira). A dica deve ser curta (máximo 25 palavras), motivadora e prática. Linguagem: Português do Brasil. Retorne apenas o texto da dica, sem aspas.",

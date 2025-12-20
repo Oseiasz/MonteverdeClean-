@@ -28,10 +28,10 @@ const DEFAULT_TASKS: Task[] = [
 
 const App: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>(() => {
-    const saved = localStorage.getItem('condoCleanSettings_2026');
+    const saved = localStorage.getItem('condoCleanSettings_v2');
     return saved ? JSON.parse(saved) : {
       apartments: DEFAULT_APARTMENTS,
-      cycleStartDate: '2026-01-05',
+      cycleStartDate: '2025-01-06',
       myApartmentId: null,
     };
   });
@@ -47,26 +47,30 @@ const App: React.FC = () => {
   const [isPreCycle, setIsPreCycle] = useState(false);
 
   useEffect(() => {
-    const cycleStart = new Date(settings.cycleStartDate);
-    const today = new Date();
-    today.setHours(0,0,0,0);
+    try {
+      const cycleStart = new Date(settings.cycleStartDate);
+      const today = new Date();
+      today.setHours(0,0,0,0);
 
-    const fullYearList = generateSchedule(settings.apartments, settings.cycleStartDate, 53, cycleStart);
-    setYearSchedule(fullYearList);
+      const fullYearList = generateSchedule(settings.apartments, settings.cycleStartDate, 52, cycleStart);
+      setYearSchedule(fullYearList);
 
-    if (today < cycleStart) {
-      setIsPreCycle(true);
-      setCurrentDutyItem(fullYearList[0]);
-    } else {
-      setIsPreCycle(false);
-      const todaySchedule = generateSchedule(settings.apartments, settings.cycleStartDate, 1);
-      setCurrentDutyItem(todaySchedule[0] || null);
+      if (today < cycleStart) {
+        setIsPreCycle(true);
+        setCurrentDutyItem(fullYearList[0] || null);
+      } else {
+        setIsPreCycle(false);
+        const todaySchedule = generateSchedule(settings.apartments, settings.cycleStartDate, 1);
+        setCurrentDutyItem(todaySchedule[0] || null);
+      }
+
+      const newHistory = generatePastSchedule(settings.apartments, settings.cycleStartDate, 4);
+      setHistorySchedule(newHistory);
+      
+      localStorage.setItem('condoCleanSettings_v2', JSON.stringify(settings));
+    } catch (err) {
+      console.error("Erro ao processar datas:", err);
     }
-
-    const newHistory = generatePastSchedule(settings.apartments, settings.cycleStartDate, 4);
-    setHistorySchedule(newHistory);
-    
-    localStorage.setItem('condoCleanSettings_2026', JSON.stringify(settings));
   }, [settings]);
 
   useEffect(() => {
@@ -77,15 +81,9 @@ const App: React.FC = () => {
       const savedObs = localStorage.getItem(`obs_${weekKey}`);
       
       const tasksObj = savedTasks ? JSON.parse(savedTasks) : {};
-      const completedCount = DEFAULT_TASKS.filter(t => tasksObj[t.id]).length;
-      const isCompleted = completedCount === DEFAULT_TASKS.length;
-      
       setCompletedTasks(tasksObj);
       setPlannedDay(savedPlanned !== null ? parseInt(savedPlanned) : null);
       setObservations(savedObs || "");
-
-      const today = new Date();
-      const isSunday = today.getDay() === 0;
 
       if (!isPreCycle && settings.myApartmentId === currentDutyItem.apartment.id) {
           setShowToast(true);
@@ -152,8 +150,8 @@ const App: React.FC = () => {
         
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-black text-gray-900 leading-tight">Escala 2026</h2>
-            <p className="text-gray-500 font-medium">Organização semanal da limpeza comum.</p>
+            <h2 className="text-3xl font-black text-gray-900 leading-tight">Escala de Limpeza</h2>
+            <p className="text-gray-500 font-medium">Organização semanal da manutenção comum.</p>
           </div>
           <div className="md:w-80">
             <CleaningStatusBanner 
@@ -170,15 +168,15 @@ const App: React.FC = () => {
           <div className="bg-amber-50 border border-amber-200 rounded-3xl p-4 flex items-start gap-3">
             <Info className="text-amber-500 flex-shrink-0 mt-0.5" size={20} />
             <div>
-              <p className="text-amber-800 font-bold text-sm">O ciclo de 2026 ainda não começou.</p>
-              <p className="text-amber-700/80 text-xs font-medium">Início em 05 de Janeiro de 2026.</p>
+              <p className="text-amber-800 font-bold text-sm">O ciclo ainda não começou.</p>
+              <p className="text-amber-700/80 text-xs font-medium">Aguardando a data de início configurada.</p>
             </div>
           </div>
         )}
 
         <CleaningTip />
 
-        {currentDutyItem && (
+        {currentDutyItem ? (
           <div className="mb-8">
              <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 ml-1">
                {isPreCycle ? 'PRIMEIRA ESCALA' : 'RESPONSÁVEL ATUAL'}
@@ -194,6 +192,10 @@ const App: React.FC = () => {
                observations={observations}
                onUpdateObservations={handleUpdateObservations}
              />
+          </div>
+        ) : (
+          <div className="p-10 text-center bg-white rounded-3xl border border-dashed border-gray-200">
+            <p className="text-gray-400 font-bold">Nenhuma escala encontrada para este período.</p>
           </div>
         )}
 

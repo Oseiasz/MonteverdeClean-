@@ -111,9 +111,9 @@ const CurrentDutyCard: React.FC<Props> = ({
                 key={task.id}
                 onClick={() => onToggleTask(task.id)}
                 className={`
-                  flex items-center gap-4 p-5 rounded-2xl border-2 transition-all text-left group
+                  task-button flex items-center gap-4 p-5 rounded-2xl border-2 text-left group
                   ${isCompleted 
-                    ? 'bg-green-50 border-green-100 text-green-700 opacity-60' 
+                    ? 'completed bg-green-50 border-green-100' 
                     : 'bg-white border-gray-100 text-gray-700 hover:border-blue-300 hover:shadow-md'}
                 `}
               >
@@ -122,7 +122,7 @@ const CurrentDutyCard: React.FC<Props> = ({
                 ) : (
                   <Circle size={24} className="text-gray-200 group-hover:text-blue-300 shrink-0" />
                 )}
-                <span className={`font-bold text-sm ${isCompleted ? 'line-through' : ''}`}>
+                <span className={`task-text font-bold text-sm ${isCompleted ? 'completed' : ''}`}>
                   {task.label}
                 </span>
               </button>

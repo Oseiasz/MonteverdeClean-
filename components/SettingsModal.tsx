@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Apartment, AppSettings } from '../types';
-import { X, Save, User, ChevronDown } from 'lucide-react';
+import { X, Save, ChevronDown, AlertCircle } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -11,12 +11,42 @@ interface Props {
 
 const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onSave }) => {
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLocalSettings(settings);
+    setError(null);
   }, [settings, isOpen]);
 
   if (!isOpen) return null;
+
+  const validateDate = (dateStr: string): string | null => {
+    if (!dateStr) return "A data de início é obrigatória.";
+    
+    const selectedDate = new Date(dateStr);
+    if (isNaN(selectedDate.getTime())) return "Data inválida.";
+
+    const today = new Date();
+    const maxFuture = new Date();
+    maxFuture.setFullYear(today.getFullYear() + 2); // Limite de 2 anos no futuro
+
+    const minPast = new Date('2020-01-01');
+
+    if (selectedDate > maxFuture) {
+      return "A data não pode ser superior a 2 anos no futuro.";
+    }
+    if (selectedDate < minPast) {
+      return "A data não pode ser anterior a 2020.";
+    }
+
+    return null;
+  };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setLocalSettings({ ...localSettings, cycleStartDate: val });
+    setError(validateDate(val));
+  };
 
   const handleApartmentChange = (index: number, field: keyof Apartment, value: string) => {
     const newApts = [...localSettings.apartments];
@@ -25,13 +55,20 @@ const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onSave }) =
   };
 
   const handleSave = () => {
+    const dateError = validateDate(localSettings.cycleStartDate);
+    if (dateError) {
+      setError(dateError);
+      return;
+    }
     onSave(localSettings);
     onClose();
   };
 
+  const isInvalid = !!error || !localSettings.cycleStartDate;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] ring-1 ring-black/5">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] ring-1 ring-black/5 animate-slide-up-fade">
         <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white">
           <h2 className="text-xl font-extrabold text-black tracking-tight">Configurações da Escala</h2>
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-colors">
@@ -47,12 +84,21 @@ const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onSave }) =
             <input
               type="date"
               value={localSettings.cycleStartDate}
-              onChange={(e) => setLocalSettings({...localSettings, cycleStartDate: e.target.value})}
-              className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-black focus:ring-0 outline-none text-black font-bold bg-white transition-all text-base"
+              onChange={handleDateChange}
+              className={`w-full p-3 border-2 rounded-xl focus:ring-0 outline-none font-bold bg-white transition-all text-base ${
+                error ? 'border-red-500 text-red-600' : 'border-gray-200 text-black focus:border-black'
+              }`}
             />
-            <p className="text-xs text-gray-500 mt-2 font-bold">
-              Data de referência onde o primeiro apartamento iniciou a limpeza.
-            </p>
+            {error ? (
+              <div className="flex items-center gap-1 mt-2 text-red-500 text-xs font-bold animate-pulse">
+                <AlertCircle size={14} />
+                <span>{error}</span>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500 mt-2 font-bold">
+                Data de referência onde o primeiro apartamento iniciou a limpeza.
+              </p>
+            )}
           </div>
 
           <div className="mb-8">
@@ -107,7 +153,12 @@ const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onSave }) =
         <div className="p-5 border-t border-gray-100 bg-white flex justify-end">
           <button
             onClick={handleSave}
-            className="flex items-center gap-2 bg-black text-white px-8 py-3 rounded-xl hover:bg-gray-800 transition-colors font-bold shadow-lg text-base"
+            disabled={isInvalid}
+            className={`flex items-center gap-2 px-8 py-3 rounded-xl transition-all font-bold shadow-lg text-base ${
+              isInvalid 
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none' 
+                : 'bg-black text-white hover:bg-gray-800'
+            }`}
           >
             <Save size={20} />
             Salvar Alterações

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Settings, Home, BellRing, Info } from 'lucide-react';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { Settings, Home, BellRing, Info, Bell, BellOff, CheckCircle } from 'lucide-react';
 import { AppSettings, Apartment, ScheduleItem, Task } from './types';
 import { generateSchedule, generatePastSchedule } from './utils/dateUtils';
 import CurrentDutyCard from './components/CurrentDutyCard';
@@ -45,6 +46,32 @@ const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [isPreCycle, setIsPreCycle] = useState(false);
+  
+  // Estado para notificações
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
+  
+  // Ref para evitar disparos duplicados de notificação de conclusão na mesma sessão
+  const hasNotifiedCompletion = useRef<string | null>(null);
+
+  useEffect(() => {
+    if ('Notification' in window) {
+      setNotifPermission(Notification.permission);
+    }
+  }, []);
+
+  const handleRequestNotification = async () => {
+    if (!('Notification' in window)) return;
+    
+    const permission = await Notification.requestPermission();
+    setNotifPermission(permission);
+    
+    if (permission === 'granted') {
+      new Notification("MonteverdeClean", {
+        body: "Notificações ativadas! Avisaremos quando chegar sua vez e quando a limpeza for concluída.",
+        icon: "https://cdn-icons-png.flaticon.com/512/3119/3119338.png"
+      });
+    }
+  };
 
   useEffect(() => {
     try {
@@ -95,8 +122,27 @@ const App: React.FC = () => {
     if (!currentDutyItem) return;
     const newCompleted = { ...completedTasks, [taskId]: !completedTasks[taskId] };
     setCompletedTasks(newCompleted);
+    
     const weekKey = currentDutyItem.startDate.toISOString().split('T')[0];
     localStorage.setItem(`tasks_${weekKey}`, JSON.stringify(newCompleted));
+
+    // Lógica de Notificação de Conclusão Total
+    const currentCompletedCount = DEFAULT_TASKS.filter(t => newCompleted[t.id]).length;
+    if (currentCompletedCount === DEFAULT_TASKS.length) {
+      // Se acabou de completar e ainda não notificamos nesta semana/sessão
+      if (notifPermission === 'granted' && hasNotifiedCompletion.current !== weekKey) {
+        new Notification("Limpeza Concluída! ✨", {
+          body: `O Apartamento ${currentDutyItem.apartment.number} finalizou todas as tarefas da semana. O condomínio está pronto!`,
+          icon: "https://cdn-icons-png.flaticon.com/512/190/190.png"
+        });
+        hasNotifiedCompletion.current = weekKey;
+      }
+    } else {
+      // Se desmarcou algo, reseta o trigger para permitir nova notificação se completar de novo
+      if (hasNotifiedCompletion.current === weekKey) {
+        hasNotifiedCompletion.current = null;
+      }
+    }
   };
 
   const handleSetPlannedDay = (day: number) => {
@@ -137,17 +183,51 @@ const App: React.FC = () => {
               Monteverde<span className="text-blue-600">Clean</span>
             </h1>
           </div>
-          <button 
-            onClick={() => setIsSettingsOpen(true)}
-            className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-all"
-          >
-            <Settings size={22} />
-          </button>
+          <div className="flex items-center gap-2">
+            {notifPermission === 'denied' && (
+              <div className="p-2 text-red-400 bg-red-50 rounded-full" title="Notificações bloqueadas">
+                <BellOff size={18} />
+              </div>
+            )}
+            <button 
+              onClick={() => setIsSettingsOpen(true)}
+              className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-all"
+            >
+              <Settings size={22} />
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
         
+        {/* Banner de Permissão de Notificação */}
+        {notifPermission === 'default' && (
+          <div className="bg-white border-2 border-blue-100 rounded-3xl p-6 shadow-xl shadow-blue-50 flex flex-col md:flex-row items-center justify-between gap-6 animate-slide-up-fade">
+            <div className="flex items-center gap-5 text-center md:text-left">
+              <div className="bg-blue-600 p-4 rounded-2xl text-white shadow-lg shadow-blue-100 animate-bounce">
+                <BellRing size={28} />
+              </div>
+              <div>
+                <h4 className="text-gray-900 font-black text-lg">Mantenha-se informado!</h4>
+                <p className="text-gray-500 font-medium text-sm">Podemos avisar quando a limpeza for concluída ou quando chegar sua vez?</p>
+              </div>
+            </div>
+            <button 
+              onClick={handleRequestNotification}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-black px-8 py-4 rounded-2xl transition-all shadow-lg shadow-blue-200 active:scale-95 whitespace-nowrap uppercase tracking-widest text-xs"
+            >
+              Ativar Notificações
+            </button>
+          </div>
+        )}
+
+        {notifPermission === 'granted' && (
+           <div className="bg-green-50/50 border border-green-100 rounded-2xl px-4 py-2 flex items-center justify-center gap-2 text-[10px] font-black text-green-600 uppercase tracking-widest animate-slide-up-fade">
+             <CheckCircle size={12} /> Notificações de conclusão e escala ativadas
+           </div>
+        )}
+
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h2 className="text-3xl font-black text-gray-900 leading-tight">Escala de Limpeza</h2>
@@ -204,6 +284,7 @@ const App: React.FC = () => {
             <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
               <ScheduleList 
                 schedule={yearSchedule} 
+                apartments={settings.apartments}
                 myApartmentId={settings.myApartmentId} 
               />
             </div>

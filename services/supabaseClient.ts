@@ -2,24 +2,23 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 export const getSupabaseClient = (url?: string, key?: string): SupabaseClient | null => {
-  // Limpa espaços em branco e garante que sejam strings válidas
-  const finalUrl = (url || '').trim();
-  const finalKey = (key || '').trim();
+  // Tenta obter das props ou de forma segura do process.env
+  const envUrl = typeof process !== 'undefined' ? process.env.SUPABASE_URL : '';
+  const envKey = typeof process !== 'undefined' ? process.env.SUPABASE_ANON_KEY : '';
 
-  // Se algum dos campos obrigatórios estiver vazio, retorna null IMEDIATAMENTE
-  // Isso evita que o SDK do Supabase lance o erro "supabaseUrl is required"
-  if (!finalUrl || !finalKey || finalUrl === '' || finalKey === '') {
+  const finalUrl = (url || envUrl || '').trim();
+  const finalKey = (key || envKey || '').trim();
+
+  // Se os dados mínimos não existirem, retorna null silenciosamente
+  // para que o App entre em modo 'Offline/Local' sem crashar.
+  if (!finalUrl || !finalKey || !finalUrl.startsWith('http')) {
     return null;
   }
   
   try {
-    // Validação básica de formato de URL antes de instanciar o cliente
-    if (!finalUrl.startsWith('http')) {
-      return null;
-    }
     return createClient(finalUrl, finalKey);
   } catch (e) {
-    console.warn("Falha ao instanciar Supabase Client:", e);
+    console.error("Erro ao inicializar Supabase:", e);
     return null;
   }
 };

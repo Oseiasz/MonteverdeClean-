@@ -30,15 +30,20 @@ const DEFAULT_TASKS: Task[] = [
 
 const App: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>(() => {
-    const saved = localStorage.getItem('condoCleanLocalSettings_v4');
-    const defaultSettings: AppSettings = {
+    try {
+      const saved = localStorage.getItem('condoCleanLocalSettings_v4');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn("Erro ao ler localStorage:", e);
+    }
+    
+    return {
       apartments: DEFAULT_APARTMENTS,
       cycleStartDate: '2025-01-06',
       myApartmentId: null,
       supabaseUrl: 'https://fyavpagkobzfbxfnfwbz.supabase.co',
       supabaseAnonKey: 'sb_publishable_DtIpJid2A34Mv3dq4Tw45A_N1VLRKbZ'
     };
-    return saved ? JSON.parse(saved) : defaultSettings;
   });
 
   const [yearSchedule, setYearSchedule] = useState<ScheduleItem[]>([]);
@@ -57,19 +62,20 @@ const App: React.FC = () => {
   const hasNotifiedCompletion = useRef<string | null>(null);
   const supabase = useRef<ReturnType<typeof getSupabaseClient>>(null);
 
+  // Inicializa o cliente Supabase de forma segura
   useEffect(() => {
     supabase.current = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
     setIsOnline(!!supabase.current);
   }, [settings.supabaseUrl, settings.supabaseAnonKey]);
 
   useEffect(() => {
-    if ('Notification' in window) {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
       setNotifPermission(Notification.permission);
     }
   }, []);
 
   const handleRequestNotification = async () => {
-    if (!('Notification' in window)) return;
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
     const permission = await Notification.requestPermission();
     setNotifPermission(permission);
     if (permission === 'granted') {
@@ -86,48 +92,56 @@ const App: React.FC = () => {
     if (!client || !isOnline) return;
 
     const fetchData = async () => {
-      // 1. Configurações Globais
-      const { data: setts } = await client.from('app_settings').select('*').eq('id', 'global').single();
-      if (setts) {
-        setSettings(prev => ({ ...prev, apartments: setts.apartments, cycleStartDate: setts.cycle_start_date }));
-      }
+      try {
+        // 1. Configurações Globais
+        const { data: setts, error: settsError } = await client.from('app_settings').select('*').eq('id', 'global').maybeSingle();
+        if (setts && !settsError) {
+          setSettings(prev => ({ ...prev, apartments: setts.apartments, cycleStartDate: setts.cycle_start_date }));
+        }
 
-      // 2. Dados Históricos (últimas semanas)
-      const pastKeys = historySchedule.map(h => h.startDate.toISOString().split('T')[0]);
-      if (pastKeys.length > 0) {
-        const { data: pastTasks } = await client.from('weekly_tasks').select('*').in('week_key', pastKeys);
-        const { data: pastMeta } = await client.from('weekly_metadata').select('*').in('week_key', pastKeys);
-        
-        const syncMap: Record<string, any> = {};
-        pastKeys.forEach(key => {
-          const weekTasks = pastTasks?.filter(t => t.week_key === key) || [];
-          const weekMeta = pastMeta?.find(m => m.week_key === key);
-          const doneCount = weekTasks.filter(t => t.is_completed).length;
-          syncMap[key] = {
-            percent: Math.round((doneCount / DEFAULT_TASKS.length) * 100),
-            obs: weekMeta?.observations || ""
-          };
-        });
-        setHistorySyncData(syncMap);
+        // 2. Dados Históricos
+        const pastKeys = historySchedule.map(h => h.startDate.toISOString().split('T')[0]);
+        if (pastKeys.length > 0) {
+          const { data: pastTasks } = await client.from('weekly_tasks').select('*').in('week_key', pastKeys);
+          const { data: pastMeta } = await client.from('weekly_metadata').select('*').in('week_key', pastKeys);
+          
+          const syncMap: Record<string, any> = {};
+          pastKeys.forEach(key => {
+            const weekTasks = pastTasks?.filter(t => t.week_key === key) || [];
+            const weekMeta = pastMeta?.find(m => m.week_key === key);
+            const doneCount = weekTasks.filter(t => t.is_completed).length;
+            syncMap[key] = {
+              percent: Math.round((doneCount / DEFAULT_TASKS.length) * 100),
+              obs: weekMeta?.observations || ""
+            };
+          });
+          setHistorySyncData(syncMap);
+        }
+      } catch (err) {
+        console.warn("Falha na sincronização inicial com Supabase:", err);
       }
     };
 
     fetchData();
 
-    const settingsSub = client
+    const channel = client
       .channel('global_changes')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_settings' }, (payload) => {
-        setSettings(prev => ({ ...prev, apartments: payload.new.apartments, cycleStartDate: payload.new.cycle_start_date }));
+        if (payload.new) {
+          setSettings(prev => ({ ...prev, apartments: payload.new.apartments, cycleStartDate: payload.new.cycle_start_date }));
+        }
       })
       .subscribe();
 
-    return () => { settingsSub.unsubscribe(); };
+    return () => { client.removeChannel(channel); };
   }, [isOnline, historySchedule.length]);
 
   // Gerar Escalas
   useEffect(() => {
     try {
       const cycleStart = new Date(settings.cycleStartDate);
+      if (isNaN(cycleStart.getTime())) return;
+
       const fullYearList = generateSchedule(settings.apartments, settings.cycleStartDate, 52, cycleStart);
       setYearSchedule(fullYearList);
 
@@ -146,27 +160,31 @@ const App: React.FC = () => {
       setHistorySchedule(generatePastSchedule(settings.apartments, settings.cycleStartDate, 4));
       localStorage.setItem('condoCleanLocalSettings_v4', JSON.stringify(settings));
     } catch (err) {
-      console.error(err);
+      console.error("Erro ao gerar escalas:", err);
     }
   }, [settings]);
 
   // Sincronização em Tempo Real da Semana Atual
   useEffect(() => {
-    if (!currentDutyItem || !supabase.current) return;
+    if (!currentDutyItem || !supabase.current || !isOnline) return;
     const client = supabase.current;
     const weekKey = currentDutyItem.startDate.toISOString().split('T')[0];
 
     const fetchWeekData = async () => {
-      const { data: tasks } = await client.from('weekly_tasks').select('*').eq('week_key', weekKey);
-      if (tasks) {
-        const obj: Record<string, boolean> = {};
-        tasks.forEach(t => { obj[t.task_id] = t.is_completed; });
-        setCompletedTasks(obj);
-      }
-      const { data: meta } = await client.from('weekly_metadata').select('*').eq('week_key', weekKey).single();
-      if (meta) {
-        setPlannedDay(meta.planned_day);
-        setObservations(meta.observations || "");
+      try {
+        const { data: tasks } = await client.from('weekly_tasks').select('*').eq('week_key', weekKey);
+        if (tasks) {
+          const obj: Record<string, boolean> = {};
+          tasks.forEach(t => { obj[t.task_id] = t.is_completed; });
+          setCompletedTasks(obj);
+        }
+        const { data: meta } = await client.from('weekly_metadata').select('*').eq('week_key', weekKey).maybeSingle();
+        if (meta) {
+          setPlannedDay(meta.planned_day);
+          setObservations(meta.observations || "");
+        }
+      } catch (e) {
+        console.warn("Erro ao buscar dados da semana:", e);
       }
     };
     fetchWeekData();
@@ -174,25 +192,29 @@ const App: React.FC = () => {
     const channel = client
       .channel(`live_week_${weekKey}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'weekly_tasks', filter: `week_key=eq.${weekKey}` }, (payload: any) => {
-        setCompletedTasks(prev => {
-          const next = { ...prev, [payload.new.task_id]: payload.new.is_completed };
-          const completedCount = DEFAULT_TASKS.filter(t => next[t.id]).length;
-          
-          if (completedCount === DEFAULT_TASKS.length && hasNotifiedCompletion.current !== weekKey) {
-            if (notifPermission === 'granted') {
-              new Notification("✨ Prédio Limpo!", {
-                body: `O morador do Apt ${currentDutyItem.apartment.number} acabou de finalizar a limpeza!`,
-                icon: "https://cdn-icons-png.flaticon.com/512/190/190.png"
-              });
+        if (payload.new) {
+          setCompletedTasks(prev => {
+            const next = { ...prev, [payload.new.task_id]: payload.new.is_completed };
+            const completedCount = DEFAULT_TASKS.filter(t => next[t.id]).length;
+            
+            if (completedCount === DEFAULT_TASKS.length && hasNotifiedCompletion.current !== weekKey) {
+              if (notifPermission === 'granted') {
+                new Notification("✨ Prédio Limpo!", {
+                  body: `O morador do Apt ${currentDutyItem.apartment.number} acabou de finalizar a limpeza!`,
+                  icon: "https://cdn-icons-png.flaticon.com/512/190/190.png"
+                });
+              }
+              hasNotifiedCompletion.current = weekKey;
             }
-            hasNotifiedCompletion.current = weekKey;
-          }
-          return next;
-        });
+            return next;
+          });
+        }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'weekly_metadata', filter: `week_key=eq.${weekKey}` }, (payload: any) => {
-        setPlannedDay(payload.new.planned_day);
-        setObservations(payload.new.observations || "");
+        if (payload.new) {
+          setPlannedDay(payload.new.planned_day);
+          setObservations(payload.new.observations || "");
+        }
       })
       .subscribe();
 
@@ -200,7 +222,7 @@ const App: React.FC = () => {
       setShowToast(true);
     }
 
-    return () => { channel.unsubscribe(); };
+    return () => { client.removeChannel(channel); };
   }, [currentDutyItem, isPreCycle, settings.myApartmentId, isOnline]);
 
   const handleToggleTask = async (taskId: string) => {
@@ -234,7 +256,11 @@ const App: React.FC = () => {
   const handleSaveSettings = async (newSettings: AppSettings) => {
     setSettings(newSettings);
     if (supabase.current) {
-      await supabase.current.from('app_settings').upsert({ id: 'global', apartments: newSettings.apartments, cycle_start_date: newSettings.cycleStartDate });
+      try {
+        await supabase.current.from('app_settings').upsert({ id: 'global', apartments: newSettings.apartments, cycle_start_date: newSettings.cycleStartDate });
+      } catch (e) {
+        console.error("Erro ao salvar no Supabase:", e);
+      }
     }
   };
 

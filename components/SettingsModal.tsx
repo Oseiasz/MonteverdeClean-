@@ -83,7 +83,7 @@ const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onSave }) =
                 />
               </div>
               <p className="text-[10px] text-gray-500 font-bold leading-relaxed px-1">
-                Obtenha estas chaves no painel do Supabase em Project Settings > API. Isso permitirá que todos os moradores vejam as atualizações instantaneamente.
+                Obtenha estas chaves no painel do Supabase em Project Settings &gt; API. Isso permitirá que todos os moradores vejam as atualizações instantaneamente.
               </p>
             </div>
           </section>

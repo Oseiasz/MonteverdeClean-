@@ -1,3 +1,4 @@
+
 export interface Apartment {
   id: string;
   name: string;
@@ -15,6 +16,8 @@ export interface AppSettings {
   apartments: Apartment[];
   cycleStartDate: string; // ISO string YYYY-MM-DD
   myApartmentId: string | null;
+  supabaseUrl?: string;
+  supabaseAnonKey?: string;
 }
 
 export interface Task {

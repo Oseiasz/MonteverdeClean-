@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { ScheduleItem } from '../types';
 import { formatDate } from '../utils/dateUtils';
@@ -7,6 +8,7 @@ interface Props {
   history: ScheduleItem[];
   totalTasks: number;
   myApartmentId: string | null;
+  syncData?: Record<string, { percent: number; obs: string }>;
 }
 
 type FilterStatus = 'all' | 'urgent' | 'partial' | 'completed';
@@ -34,31 +36,32 @@ const analyzeObservation = (obs: string) => {
   return { isUrgent, isPartial };
 };
 
-const HistoryList: React.FC<Props> = ({ history, totalTasks, myApartmentId }) => {
+const HistoryList: React.FC<Props> = ({ history, totalTasks, myApartmentId, syncData = {} }) => {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
 
   const getWeeklyData = (startDate: Date) => {
-    const dateKey = startDate.toISOString().split('T')[0];
-    const tasksKey = `tasks_${dateKey}`;
-    const obsKey = `obs_${dateKey}`;
+    const weekKey = startDate.toISOString().split('T')[0];
+    const cloudData = syncData[weekKey];
     
+    if (cloudData) {
+      const { isUrgent, isPartial } = analyzeObservation(cloudData.obs);
+      return { percent: cloudData.percent, obs: cloudData.obs, isUrgent, isPartial };
+    }
+
+    // Fallback para localStorage caso a nuvem ainda esteja carregando
     let percent = 0;
     let obs = "";
-
     try {
-      const savedTasks = localStorage.getItem(tasksKey);
+      const savedTasks = localStorage.getItem(`tasks_${weekKey}`);
       if (savedTasks) {
         const parsed = JSON.parse(savedTasks);
         const count = Object.values(parsed).filter(Boolean).length;
-        percent = totalTasks > 0 ? Math.round((count / totalTasks) * 100) : 0;
+        percent = Math.round((count / totalTasks) * 100);
       }
-      obs = localStorage.getItem(obsKey) || "";
-    } catch (e) {
-      console.error(e);
-    }
+      obs = localStorage.getItem(`obs_${weekKey}`) || "";
+    } catch (e) {}
 
     const { isUrgent, isPartial } = analyzeObservation(obs);
-
     return { percent, obs, isUrgent, isPartial };
   };
 
@@ -76,43 +79,28 @@ const HistoryList: React.FC<Props> = ({ history, totalTasks, myApartmentId }) =>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-2">
           <History size={18} className="text-gray-400" />
-          <h3 className="text-xs font-black uppercase tracking-widest text-gray-400">Histórico Recente</h3>
+          <h3 className="text-xs font-black uppercase tracking-widest text-gray-400">Histórico Cloud</h3>
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-          <Filter size={14} className="text-gray-300 shrink-0" />
           <button
             onClick={() => setFilterStatus('all')}
             className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tight transition-all border shrink-0 ${
-              filterStatus === 'all' ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-100 hover:border-gray-200'
+              filterStatus === 'all' ? 'bg-black text-white' : 'bg-white text-gray-500'
             }`}
-          >
-            Todos
-          </button>
+          > Todos </button>
           <button
             onClick={() => setFilterStatus('urgent')}
             className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tight transition-all border shrink-0 ${
-              filterStatus === 'urgent' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-500 border-red-50 hover:border-red-100'
+              filterStatus === 'urgent' ? 'bg-red-600 text-white' : 'bg-white text-red-500'
             }`}
-          >
-            Urgentes
-          </button>
-          <button
-            onClick={() => setFilterStatus('partial')}
-            className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tight transition-all border shrink-0 ${
-              filterStatus === 'partial' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-amber-600 border-amber-50 hover:border-amber-100'
-            }`}
-          >
-            Parciais
-          </button>
+          > Urgentes </button>
           <button
             onClick={() => setFilterStatus('completed')}
             className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tight transition-all border shrink-0 ${
-              filterStatus === 'completed' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-green-600 border-green-50 hover:border-green-100'
+              filterStatus === 'completed' ? 'bg-green-600 text-white' : 'bg-white text-green-600'
             }`}
-          >
-            Concluídos
-          </button>
+          > Concluídos </button>
         </div>
       </div>
       
@@ -126,31 +114,23 @@ const HistoryList: React.FC<Props> = ({ history, totalTasks, myApartmentId }) =>
             return (
               <div 
                 key={idx} 
-                className={`
-                  p-4 rounded-2xl border transition-all animate-slide-up-fade
-                  ${isMe ? `${highlightStyle} border-2 shadow-sm` : 'bg-white border-gray-50 text-gray-700 hover:border-gray-200'}
-                `}
+                className={`p-4 rounded-2xl border transition-all animate-slide-up-fade ${
+                  isMe ? `${highlightStyle} border-2 shadow-sm` : 'bg-white border-gray-50 text-gray-700'
+                }`}
                 style={{ animationDelay: `${idx * 0.1}s` }}
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex flex-col">
                     <div className="flex items-center gap-2 mb-0.5">
                       <p className="text-sm font-black">Apt {item.apartment.number}</p>
-                      {isMe && <span className="text-[9px] font-black uppercase bg-white/60 px-2 py-0.5 rounded ring-1 ring-black/5">Eu</span>}
-                      
-                      {obs && isUrgent && (
-                        <span className="flex items-center gap-1 text-[9px] font-black uppercase bg-red-100 text-red-700 px-2 py-0.5 rounded animate-pulse">
-                          <AlertTriangle size={10} /> Urgente
-                        </span>
-                      )}
-                      {obs && isPartial && !isUrgent && (
-                        <span className="flex items-center gap-1 text-[9px] font-black uppercase bg-amber-100 text-amber-700 px-2 py-0.5 rounded">
-                          <PlayCircle size={10} /> Parcial
-                        </span>
-                      )}
                       {percent === 100 && (
                         <span className="flex items-center gap-1 text-[9px] font-black uppercase bg-green-100 text-green-700 px-2 py-0.5 rounded">
                           <CheckCircle size={10} /> Concluído
+                        </span>
+                      )}
+                      {obs && isUrgent && (
+                        <span className="flex items-center gap-1 text-[9px] font-black uppercase bg-red-100 text-red-700 px-2 py-0.5 rounded">
+                          <AlertTriangle size={10} /> Urgente
                         </span>
                       )}
                     </div>
@@ -158,34 +138,28 @@ const HistoryList: React.FC<Props> = ({ history, totalTasks, myApartmentId }) =>
                       {formatDate(item.startDate)} — {formatDate(item.endDate)}
                     </p>
                   </div>
-                  
                   <div className="flex flex-col items-end shrink-0">
-                    <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden mb-1">
+                    <div className="w-16 h-1 bg-gray-100 rounded-full overflow-hidden mb-1">
                         <div 
                           className={`h-full rounded-full transition-all duration-700 ${percent === 100 ? 'bg-green-500' : 'bg-blue-400'}`}
                           style={{ width: `${percent}%` }}
                         />
                     </div>
-                    <span className="text-[9px] font-black text-gray-400">{percent}% CONCLUÍDO</span>
+                    <span className="text-[9px] font-black text-gray-400">{percent}%</span>
                   </div>
                 </div>
-
                 {obs && (
-                  <div className={`mt-3 p-3 rounded-xl flex items-start gap-2 text-xs font-medium border border-dashed transition-all group ${
-                    isUrgent ? 'bg-red-50/50 border-red-100 text-red-900' : 
-                    isPartial ? 'bg-amber-50/50 border-amber-100 text-amber-900' :
-                    isMe ? 'bg-white/40 border-current/20' : 'bg-gray-50 border-gray-100'
-                  }`}>
-                    <MessageSquareText size={14} className="shrink-0 mt-0.5 opacity-50" />
-                    <p className="italic leading-relaxed">"{obs}"</p>
+                  <div className="mt-2 p-2 bg-gray-50/50 rounded-xl flex items-start gap-2 text-xs border border-dashed border-gray-100">
+                    <MessageSquareText size={12} className="shrink-0 mt-0.5 opacity-40" />
+                    <p className="italic text-gray-600">"{obs}"</p>
                   </div>
                 )}
               </div>
             );
           })
         ) : (
-          <div className="py-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-            <p className="text-gray-400 font-bold text-sm">Nenhum registro encontrado com este filtro.</p>
+          <div className="py-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-100">
+            <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">Nenhum registro sincronizado</p>
           </div>
         )}
       </div>

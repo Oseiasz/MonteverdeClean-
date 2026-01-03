@@ -31,8 +31,8 @@ const DEFAULT_TASKS: Task[] = [
 const App: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>(() => {
     try {
-      // Chave v6 para forçar reset para o ciclo de 2026
-      const saved = localStorage.getItem('condoCleanLocalSettings_v6');
+      // Chave v8 para garantir migração limpa para 2026 e novas cores
+      const saved = localStorage.getItem('condoCleanLocalSettings_v8');
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.warn("Erro ao ler localStorage:", e);
@@ -58,33 +58,13 @@ const App: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [isPreCycle, setIsPreCycle] = useState(false);
   const [isOnline, setIsOnline] = useState(false);
-  const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
   
-  const hasNotifiedCompletion = useRef<string | null>(null);
   const supabase = useRef<ReturnType<typeof getSupabaseClient>>(null);
 
   useEffect(() => {
     supabase.current = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
     setIsOnline(!!supabase.current);
   }, [settings.supabaseUrl, settings.supabaseAnonKey]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setNotifPermission(Notification.permission);
-    }
-  }, []);
-
-  const handleRequestNotification = async () => {
-    if (typeof window === 'undefined' || !('Notification' in window)) return;
-    const permission = await Notification.requestPermission();
-    setNotifPermission(permission);
-    if (permission === 'granted') {
-      new Notification("MonteverdeClean", {
-        body: "Monitoramento em tempo real ativado!",
-        icon: "https://cdn-icons-png.flaticon.com/512/3119/3119338.png"
-      });
-    }
-  };
 
   useEffect(() => {
     const client = supabase.current;
@@ -154,7 +134,7 @@ const App: React.FC = () => {
       }
 
       setHistorySchedule(generatePastSchedule(settings.apartments, settings.cycleStartDate, 4));
-      localStorage.setItem('condoCleanLocalSettings_v6', JSON.stringify(settings));
+      localStorage.setItem('condoCleanLocalSettings_v8', JSON.stringify(settings));
     } catch (err) {
       console.error("Erro ao gerar escalas:", err);
     }
@@ -188,10 +168,7 @@ const App: React.FC = () => {
       .channel(`live_week_${weekKey}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'weekly_tasks', filter: `week_key=eq.${weekKey}` }, (payload: any) => {
         if (payload.new) {
-          setCompletedTasks(prev => {
-            const next = { ...prev, [payload.new.task_id]: payload.new.is_completed };
-            return next;
-          });
+          setCompletedTasks(prev => ({ ...prev, [payload.new.task_id]: payload.new.is_completed }));
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'weekly_metadata', filter: `week_key=eq.${weekKey}` }, (payload: any) => {
@@ -271,7 +248,7 @@ const App: React.FC = () => {
                 Monteverde<span className="text-blue-600">Clean</span>
               </h1>
               <span className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-widest text-gray-400 mt-1">
-                {isOnline ? <><Wifi size={8} className="text-green-500" /> Sincronizado</> : <><WifiOff size={8} className="text-red-400" /> Offline</>}
+                {isOnline ? <><Wifi size={8} className="text-green-500" /> Sincronizado</> : <><WifiOff size={8} className="text-red-400" /> Modo Local</>}
               </span>
             </div>
           </div>
@@ -284,8 +261,8 @@ const App: React.FC = () => {
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-black text-gray-900 leading-tight">Escala 2026</h2>
-            <p className="text-gray-500 font-medium">Ciclo: 05/01/2026 (Apt 101) em diante.</p>
+            <h2 className="text-3xl font-black text-gray-900 leading-tight">Gestão 2026</h2>
+            <p className="text-gray-500 font-medium italic">Sequência: 101 ao 302</p>
           </div>
           <div className="md:w-80">
             <CleaningStatusBanner 
@@ -325,13 +302,13 @@ const App: React.FC = () => {
           </div>
           <div className="md:col-span-1">
              <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm sticky top-24">
-                <h4 className="font-black text-gray-900 mb-4 text-xs uppercase tracking-widest">Aviso Importante</h4>
+                <h4 className="font-black text-gray-900 mb-4 text-xs uppercase tracking-widest text-blue-600">Cronograma</h4>
                 <p className="text-sm text-gray-600 font-medium mb-4 leading-relaxed">
-                  A escala segue o fluxo do morador do <strong>101 até o 302</strong>. Cada semana é de responsabilidade de um único apartamento.
+                  Toque nas semanas da lista ao lado para conferir as datas exatas de início e término.
                 </p>
                 <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                  <span className="text-[10px] font-black text-blue-600 uppercase">Segurança</span>
-                  <p className="text-xs font-bold text-blue-900 mt-1">As chaves da base de dados agora estão protegidas nas configurações.</p>
+                  <span className="text-[10px] font-black text-blue-600 uppercase">Privacidade</span>
+                  <p className="text-xs font-bold text-blue-900 mt-1">Dados de conexão protegidos por senha de administrador.</p>
                 </div>
              </div>
           </div>

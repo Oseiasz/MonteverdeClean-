@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { ScheduleItem, Apartment } from '../types';
 import { formatDate } from '../utils/dateUtils';
-import { CalendarDays, Filter, ChevronRight, LayoutGrid, Calendar as CalendarIcon, List, Info, X } from 'lucide-react';
+import { CalendarDays, Filter, ChevronRight, LayoutGrid, Calendar as CalendarIcon, List, Info, X, Clock } from 'lucide-react';
 
 interface Props {
   schedule: ScheduleItem[];
@@ -67,7 +67,7 @@ const ScheduleList: React.FC<Props> = ({ schedule, apartments, myApartmentId }) 
         <div className="flex items-center gap-4">
           <div className="flex flex-col min-w-[60px]">
             <span className={`text-[9px] font-black uppercase tracking-tighter ${isMe ? 'opacity-70' : 'text-gray-400'}`}>
-              Início
+              Data Base
             </span>
             <span className="text-sm font-black">
               {formatDate(item.startDate)}
@@ -76,10 +76,10 @@ const ScheduleList: React.FC<Props> = ({ schedule, apartments, myApartmentId }) 
           <div className="h-8 w-px bg-current opacity-10"></div>
           <div className="flex flex-col">
              <span className={`text-base font-black ${isMe ? '' : 'text-gray-900'}`}>
-               Apt {item.apartment.number}
+               Apartamento {item.apartment.number}
              </span>
              <span className="text-[10px] font-bold opacity-60 truncate max-w-[120px]">
-               {item.apartment.name || 'Pendente'}
+               {item.apartment.name || 'Responsável não definido'}
              </span>
           </div>
         </div>
@@ -91,41 +91,44 @@ const ScheduleList: React.FC<Props> = ({ schedule, apartments, myApartmentId }) 
 
   return (
     <div className="space-y-6">
-      {/* Detalhes da Semana Modal/Overlay */}
+      {/* Detalhes da Semana Modal / Overlay */}
       {selectedWeek && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-           <div className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-xs animate-slide-up-fade border border-gray-100">
-              <div className="flex justify-between items-center mb-6">
-                <h5 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Detalhamento da Limpeza</h5>
-                <button onClick={() => setSelectedWeek(null)} className="p-1 hover:bg-gray-100 rounded-full transition-colors">
-                   <X size={18} />
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-fade-in">
+           <div className="bg-white rounded-[2rem] p-8 shadow-2xl w-full max-w-sm animate-slide-up-fade border border-gray-100">
+              <div className="flex justify-between items-center mb-8">
+                <div className="flex items-center gap-2">
+                   <Clock size={16} className="text-blue-600" />
+                   <h5 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Detalhamento Semanal</h5>
+                </div>
+                <button onClick={() => setSelectedWeek(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                   <X size={20} />
                 </button>
               </div>
               
-              <div className="space-y-4">
-                 <div className="bg-blue-600 p-6 rounded-2xl text-center shadow-lg shadow-blue-100">
-                    <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1">Responsável da Semana</p>
-                    <p className="text-3xl font-black text-white">Apt {selectedWeek.apartment.number}</p>
-                    <p className="text-sm font-bold text-blue-100 mt-1">{selectedWeek.apartment.name || 'Residente do Condomínio'}</p>
+              <div className="space-y-6">
+                 <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-3xl text-center shadow-xl shadow-blue-200">
+                    <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-2">Morador de Plantão</p>
+                    <p className="text-4xl font-black text-white mb-2">Apt {selectedWeek.apartment.number}</p>
+                    <p className="text-sm font-bold text-blue-100">{selectedWeek.apartment.name || 'Residente 2026'}</p>
                  </div>
                  
-                 <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-gray-50 p-4 rounded-2xl text-center border border-gray-100">
-                       <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Data Início</p>
-                       <p className="text-sm font-black text-gray-800">{formatDate(selectedWeek.startDate)}/26</p>
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-slate-50 p-5 rounded-3xl text-center border border-slate-100">
+                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Início</p>
+                       <p className="text-base font-black text-slate-900">{formatDate(selectedWeek.startDate)}/26</p>
                     </div>
-                    <div className="bg-gray-50 p-4 rounded-2xl text-center border border-gray-100">
-                       <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Data Término</p>
-                       <p className="text-sm font-black text-gray-800">{formatDate(selectedWeek.endDate)}/26</p>
+                    <div className="bg-slate-50 p-5 rounded-3xl text-center border border-slate-100">
+                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Término</p>
+                       <p className="text-base font-black text-slate-900">{formatDate(selectedWeek.endDate)}/26</p>
                     </div>
                  </div>
               </div>
 
               <button 
                 onClick={() => setSelectedWeek(null)}
-                className="w-full mt-6 py-4 bg-gray-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest active:scale-95 transition-all shadow-xl"
+                className="w-full mt-8 py-4 bg-black text-white rounded-2xl text-xs font-black uppercase tracking-widest active:scale-95 transition-all shadow-xl shadow-gray-200"
               >
-                Fechar Detalhes
+                Ciente
               </button>
            </div>
         </div>
@@ -135,28 +138,28 @@ const ScheduleList: React.FC<Props> = ({ schedule, apartments, myApartmentId }) 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CalendarDays size={18} className="text-blue-500" />
-            <h3 className="text-xs font-black uppercase tracking-widest text-gray-400">Escala de Manutenção 2026</h3>
+            <h3 className="text-xs font-black uppercase tracking-widest text-gray-400">Escala Permanente 2026</h3>
           </div>
         </div>
 
-        <div className="flex p-1 bg-gray-100 rounded-xl">
+        <div className="flex p-1 bg-gray-100 rounded-2xl">
           <button 
             onClick={() => setViewMode('upcoming')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${viewMode === 'upcoming' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${viewMode === 'upcoming' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
           >
-            <List size={14} /> Em Breve
+            <List size={14} /> Próximos
           </button>
           <button 
             onClick={() => setViewMode('month')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${viewMode === 'month' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${viewMode === 'month' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
           >
-            <CalendarIcon size={14} /> Deste Mês
+            <CalendarIcon size={14} /> Este Mês
           </button>
           <button 
             onClick={() => setViewMode('year')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${viewMode === 'year' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${viewMode === 'year' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
           >
-            <LayoutGrid size={14} /> Ano Todo
+            <LayoutGrid size={14} /> Ciclo Anual
           </button>
         </div>
 
@@ -166,7 +169,7 @@ const ScheduleList: React.FC<Props> = ({ schedule, apartments, myApartmentId }) 
           </div>
           <button 
             onClick={() => setFilterAptId('all')}
-            className={`flex-shrink-0 px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition-all ${filterAptId === 'all' ? 'bg-black text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+            className={`flex-shrink-0 px-5 py-2 rounded-full text-[10px] font-black uppercase transition-all ${filterAptId === 'all' ? 'bg-black text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
           >
             Todos
           </button>
@@ -174,9 +177,9 @@ const ScheduleList: React.FC<Props> = ({ schedule, apartments, myApartmentId }) 
             <button 
               key={apt.id}
               onClick={() => setFilterAptId(apt.id)}
-              className={`flex-shrink-0 px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition-all ${filterAptId === apt.id ? 'bg-blue-600 text-white shadow-md shadow-blue-100' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+              className={`flex-shrink-0 px-5 py-2 rounded-full text-[10px] font-black uppercase transition-all ${filterAptId === apt.id ? 'bg-blue-600 text-white shadow-md shadow-blue-100' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
             >
-              Apt {apt.number}
+              {apt.number}
             </button>
           ))}
         </div>
@@ -186,8 +189,8 @@ const ScheduleList: React.FC<Props> = ({ schedule, apartments, myApartmentId }) 
         {viewMode === 'year' ? (
           Object.entries(groupedByMonth).map(([month, items]) => (
             <div key={month} className="space-y-2">
-              <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2 mt-4 flex items-center gap-2">
-                <ChevronRight size={12} className="text-blue-500" /> {month}
+              <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2 mt-6 flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div> {month}
               </h4>
               <div className="space-y-2">
                 {items.map((item, idx) => renderItem(item, idx))}
@@ -199,16 +202,16 @@ const ScheduleList: React.FC<Props> = ({ schedule, apartments, myApartmentId }) 
             {displayItems.length > 0 ? (
               displayItems.map((item, idx) => renderItem(item, idx))
             ) : (
-              <div className="py-12 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                <p className="text-gray-400 font-bold text-sm uppercase tracking-widest">Nenhuma escala encontrada.</p>
+              <div className="py-16 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                <p className="text-slate-400 font-black text-[10px] uppercase tracking-widest">Nenhuma escala para este período.</p>
               </div>
             )}
           </div>
         )}
       </div>
 
-      <p className="text-[9px] text-gray-400 font-bold flex items-center justify-center gap-2 mt-4 uppercase">
-         <Info size={10} /> Toque em uma semana para ver o período completo
+      <p className="text-[9px] text-gray-400 font-bold flex items-center justify-center gap-2 mt-6 uppercase tracking-wider">
+         <Info size={10} className="text-blue-400" /> Clique em uma linha para ver o período completo
       </p>
     </div>
   );

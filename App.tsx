@@ -31,7 +31,8 @@ const DEFAULT_TASKS: Task[] = [
 const App: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>(() => {
     try {
-      const saved = localStorage.getItem('condoCleanLocalSettings_v4');
+      // Chave v6 para forçar reset para o ciclo de 2026
+      const saved = localStorage.getItem('condoCleanLocalSettings_v6');
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.warn("Erro ao ler localStorage:", e);
@@ -39,7 +40,7 @@ const App: React.FC = () => {
     
     return {
       apartments: DEFAULT_APARTMENTS,
-      cycleStartDate: '2025-01-06',
+      cycleStartDate: '2026-01-05',
       myApartmentId: null,
       supabaseUrl: 'https://fyavpagkobzfbxfnfwbz.supabase.co',
       supabaseAnonKey: 'sb_publishable_DtIpJid2A34Mv3dq4Tw45A_N1VLRKbZ'
@@ -62,7 +63,6 @@ const App: React.FC = () => {
   const hasNotifiedCompletion = useRef<string | null>(null);
   const supabase = useRef<ReturnType<typeof getSupabaseClient>>(null);
 
-  // Inicializa o cliente Supabase de forma segura
   useEffect(() => {
     supabase.current = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
     setIsOnline(!!supabase.current);
@@ -86,20 +86,17 @@ const App: React.FC = () => {
     }
   };
 
-  // Carregar Configurações Globais e Dados Históricos
   useEffect(() => {
     const client = supabase.current;
     if (!client || !isOnline) return;
 
     const fetchData = async () => {
       try {
-        // 1. Configurações Globais
         const { data: setts, error: settsError } = await client.from('app_settings').select('*').eq('id', 'global').maybeSingle();
         if (setts && !settsError) {
           setSettings(prev => ({ ...prev, apartments: setts.apartments, cycleStartDate: setts.cycle_start_date }));
         }
 
-        // 2. Dados Históricos
         const pastKeys = historySchedule.map(h => h.startDate.toISOString().split('T')[0]);
         if (pastKeys.length > 0) {
           const { data: pastTasks } = await client.from('weekly_tasks').select('*').in('week_key', pastKeys);
@@ -118,7 +115,7 @@ const App: React.FC = () => {
           setHistorySyncData(syncMap);
         }
       } catch (err) {
-        console.warn("Falha na sincronização inicial com Supabase:", err);
+        console.warn("Falha na sincronização inicial:", err);
       }
     };
 
@@ -136,7 +133,6 @@ const App: React.FC = () => {
     return () => { client.removeChannel(channel); };
   }, [isOnline, historySchedule.length]);
 
-  // Gerar Escalas
   useEffect(() => {
     try {
       const cycleStart = new Date(settings.cycleStartDate);
@@ -158,13 +154,12 @@ const App: React.FC = () => {
       }
 
       setHistorySchedule(generatePastSchedule(settings.apartments, settings.cycleStartDate, 4));
-      localStorage.setItem('condoCleanLocalSettings_v4', JSON.stringify(settings));
+      localStorage.setItem('condoCleanLocalSettings_v6', JSON.stringify(settings));
     } catch (err) {
       console.error("Erro ao gerar escalas:", err);
     }
   }, [settings]);
 
-  // Sincronização em Tempo Real da Semana Atual
   useEffect(() => {
     if (!currentDutyItem || !supabase.current || !isOnline) return;
     const client = supabase.current;
@@ -195,17 +190,6 @@ const App: React.FC = () => {
         if (payload.new) {
           setCompletedTasks(prev => {
             const next = { ...prev, [payload.new.task_id]: payload.new.is_completed };
-            const completedCount = DEFAULT_TASKS.filter(t => next[t.id]).length;
-            
-            if (completedCount === DEFAULT_TASKS.length && hasNotifiedCompletion.current !== weekKey) {
-              if (notifPermission === 'granted') {
-                new Notification("✨ Prédio Limpo!", {
-                  body: `O morador do Apt ${currentDutyItem.apartment.number} acabou de finalizar a limpeza!`,
-                  icon: "https://cdn-icons-png.flaticon.com/512/190/190.png"
-                });
-              }
-              hasNotifiedCompletion.current = weekKey;
-            }
             return next;
           });
         }
@@ -265,7 +249,6 @@ const App: React.FC = () => {
   };
 
   const completedCount = DEFAULT_TASKS.filter(t => completedTasks[t.id]).length;
-  const isSunday = new Date().getDay() === 0;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-12">
@@ -275,7 +258,6 @@ const App: React.FC = () => {
         apartmentNumber={currentDutyItem?.apartment.number || ''}
         plannedDay={plannedDay}
         tasksCompleted={completedCount === DEFAULT_TASKS.length}
-        isCritical={isSunday && completedCount < DEFAULT_TASKS.length}
       />
 
       <header className="bg-white border-b border-gray-200 sticky top-0 z-30 bg-opacity-90 backdrop-blur-md">
@@ -289,7 +271,7 @@ const App: React.FC = () => {
                 Monteverde<span className="text-blue-600">Clean</span>
               </h1>
               <span className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-widest text-gray-400 mt-1">
-                {isOnline ? <><Wifi size={8} className="text-green-500" /> Cloud Sync On</> : <><WifiOff size={8} className="text-red-400" /> Offline</>}
+                {isOnline ? <><Wifi size={8} className="text-green-500" /> Sincronizado</> : <><WifiOff size={8} className="text-red-400" /> Offline</>}
               </span>
             </div>
           </div>
@@ -300,27 +282,10 @@ const App: React.FC = () => {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
-        {notifPermission === 'default' && (
-          <div className="bg-white border-2 border-blue-100 rounded-3xl p-6 shadow-xl shadow-blue-50 flex flex-col md:flex-row items-center justify-between gap-6 animate-slide-up-fade">
-            <div className="flex items-center gap-5">
-              <div className="bg-blue-600 p-4 rounded-2xl text-white shadow-lg shrink-0">
-                <BellRing size={28} />
-              </div>
-              <div>
-                <h4 className="text-gray-900 font-black text-lg">Avisos em Tempo Real</h4>
-                <p className="text-gray-500 font-medium text-sm">Receba alertas quando os vizinhos terminarem a manutenção.</p>
-              </div>
-            </div>
-            <button onClick={handleRequestNotification} className="bg-blue-600 hover:bg-blue-700 text-white font-black px-8 py-4 rounded-2xl transition-all shadow-lg text-xs uppercase tracking-widest">
-              Ativar Sincronização
-            </button>
-          </div>
-        )}
-
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-black text-gray-900 leading-tight">Escala do Prédio</h2>
-            <p className="text-gray-500 font-medium">Sincronizado via Supabase Cloud.</p>
+            <h2 className="text-3xl font-black text-gray-900 leading-tight">Escala 2026</h2>
+            <p className="text-gray-500 font-medium">Ciclo: 05/01/2026 (Apt 101) em diante.</p>
           </div>
           <div className="md:w-80">
             <CleaningStatusBanner 
@@ -360,13 +325,13 @@ const App: React.FC = () => {
           </div>
           <div className="md:col-span-1">
              <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm sticky top-24">
-                <h4 className="font-black text-gray-900 mb-4 text-xs uppercase tracking-widest">Condo Live</h4>
-                <p className="text-sm text-gray-600 font-medium mb-4">
-                  Todas as marcações são refletidas <strong>instantaneamente</strong> para os outros 5 apartamentos.
+                <h4 className="font-black text-gray-900 mb-4 text-xs uppercase tracking-widest">Aviso Importante</h4>
+                <p className="text-sm text-gray-600 font-medium mb-4 leading-relaxed">
+                  A escala segue o fluxo do morador do <strong>101 até o 302</strong>. Cada semana é de responsabilidade de um único apartamento.
                 </p>
-                <div className="p-4 bg-green-50 rounded-2xl border border-green-100">
-                  <span className="text-[10px] font-black text-green-600 uppercase">Cloud OK</span>
-                  <p className="text-xs font-bold text-green-900 mt-1">Serviço de mensageria ativo e operando.</p>
+                <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                  <span className="text-[10px] font-black text-blue-600 uppercase">Segurança</span>
+                  <p className="text-xs font-bold text-blue-900 mt-1">As chaves da base de dados agora estão protegidas nas configurações.</p>
                 </div>
              </div>
           </div>

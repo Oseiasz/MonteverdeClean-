@@ -31,8 +31,8 @@ const DEFAULT_TASKS: Task[] = [
 const App: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>(() => {
     try {
-      // Chave v8 para garantir migração limpa para 2026 e novas cores
-      const saved = localStorage.getItem('condoCleanLocalSettings_v8');
+      // Chave v9 para forçar atualização de cores e segurança
+      const saved = localStorage.getItem('condoCleanLocalSettings_v9');
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.warn("Erro ao ler localStorage:", e);
@@ -134,7 +134,7 @@ const App: React.FC = () => {
       }
 
       setHistorySchedule(generatePastSchedule(settings.apartments, settings.cycleStartDate, 4));
-      localStorage.setItem('condoCleanLocalSettings_v8', JSON.stringify(settings));
+      localStorage.setItem('condoCleanLocalSettings_v9', JSON.stringify(settings));
     } catch (err) {
       console.error("Erro ao gerar escalas:", err);
     }
@@ -248,7 +248,7 @@ const App: React.FC = () => {
                 Monteverde<span className="text-blue-600">Clean</span>
               </h1>
               <span className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-widest text-gray-400 mt-1">
-                {isOnline ? <><Wifi size={8} className="text-green-500" /> Sincronizado</> : <><WifiOff size={8} className="text-red-400" /> Modo Local</>}
+                {isOnline ? <><Wifi size={8} className="text-green-500" /> Sincronizado</> : <><WifiOff size={8} className="text-red-400" /> Modo Offline</>}
               </span>
             </div>
           </div>
@@ -261,8 +261,8 @@ const App: React.FC = () => {
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-black text-gray-900 leading-tight">Gestão 2026</h2>
-            <p className="text-gray-500 font-medium italic">Sequência: 101 ao 302</p>
+            <h2 className="text-3xl font-black text-gray-900 leading-tight">Ciclo 2026</h2>
+            <p className="text-gray-500 font-medium italic">Sequência semanal: 101 até 302</p>
           </div>
           <div className="md:w-80">
             <CleaningStatusBanner 
@@ -302,13 +302,13 @@ const App: React.FC = () => {
           </div>
           <div className="md:col-span-1">
              <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm sticky top-24">
-                <h4 className="font-black text-gray-900 mb-4 text-xs uppercase tracking-widest text-blue-600">Cronograma</h4>
+                <h4 className="font-black text-gray-900 mb-4 text-xs uppercase tracking-widest text-blue-600">Instruções</h4>
                 <p className="text-sm text-gray-600 font-medium mb-4 leading-relaxed">
-                  Toque nas semanas da lista ao lado para conferir as datas exatas de início e término.
+                  O cronograma é rotativo entre os 6 apartamentos. Clique em qualquer semana para ver o intervalo completo de datas.
                 </p>
                 <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                  <span className="text-[10px] font-black text-blue-600 uppercase">Privacidade</span>
-                  <p className="text-xs font-bold text-blue-900 mt-1">Dados de conexão protegidos por senha de administrador.</p>
+                  <span className="text-[10px] font-black text-blue-600 uppercase">Segurança</span>
+                  <p className="text-xs font-bold text-blue-900 mt-1">Configurações críticas exigem a senha do administrador.</p>
                 </div>
              </div>
           </div>

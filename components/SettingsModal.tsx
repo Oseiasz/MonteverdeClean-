@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Apartment, AppSettings } from '../types';
-import { X, Save, ChevronDown, AlertCircle, Database, ShieldCheck, Eye, EyeOff, Lock, Unlock, Key } from 'lucide-react';
+import { X, Save, AlertCircle, Database, ShieldCheck, Lock, Unlock } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -55,8 +55,8 @@ const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onSave }) =
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] ring-1 ring-black/5 animate-slide-up-fade border border-gray-200">
         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white shrink-0">
           <div>
-            <h2 className="text-xl font-black text-black tracking-tight leading-none">Configurações</h2>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Administração Condomínio</p>
+            <h2 className="text-xl font-black text-black tracking-tight leading-none">Painel de Controle</h2>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Configurações 2026</p>
           </div>
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-colors">
             <X size={24} />
@@ -64,11 +64,11 @@ const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onSave }) =
         </div>
 
         <div className="p-6 overflow-y-auto bg-white flex-1 space-y-8 scrollbar-hide">
-          {/* Seção Banco de Dados - Protegida por Senha */}
+          {/* Seção Supabase Protegida */}
           <section>
             <div className="flex items-center gap-2 mb-4">
               <Database size={18} className="text-blue-600" />
-              <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">Base de Dados (Supabase)</h3>
+              <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">Sincronização Cloud</h3>
             </div>
             
             {!isUnlocked ? (
@@ -76,113 +76,80 @@ const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onSave }) =
                 <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mb-4">
                   <Lock size={20} className="text-slate-400" />
                 </div>
-                <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide mb-2">Acesso Privado</h4>
-                <p className="text-[10px] text-slate-500 font-bold mb-4 px-8 leading-relaxed">
-                  As chaves de API e URL são sensíveis. Digite a senha para editar.
-                </p>
+                <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide mb-2">Acesso Restrito</h4>
                 <div className="w-full max-w-[200px] space-y-3">
                   <input 
                     type="password"
-                    placeholder="Senha de acesso"
+                    placeholder="Senha do administrador"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
-                    className={`w-full p-2.5 bg-white border-2 rounded-xl text-center font-black text-sm outline-none transition-all ${passError ? 'border-red-400 animate-shake' : 'border-slate-200 focus:border-blue-500'}`}
+                    className={`w-full p-3 bg-white border-2 rounded-xl text-center font-black text-sm outline-none transition-all ${passError ? 'border-red-400' : 'border-slate-200 focus:border-blue-500'}`}
                   />
-                  <button 
-                    onClick={handleUnlock}
-                    className="w-full py-2.5 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg"
-                  >
-                    Desbloquear Chaves
+                  <button onClick={handleUnlock} className="w-full py-3 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg">
+                    Desbloquear
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="space-y-4 p-4 bg-blue-50 rounded-2xl border border-blue-100 animate-slide-up-fade">
+              <div className="space-y-4 p-5 bg-blue-50 rounded-2xl border border-blue-100 animate-slide-up-fade">
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center gap-1.5 text-blue-700">
                     <Unlock size={14} />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Acesso Autorizado</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">Editável</span>
                   </div>
-                  <button 
-                    onClick={() => setShowKeys(!showKeys)}
-                    className="text-[9px] font-black uppercase text-blue-600 hover:underline"
-                  >
-                    {showKeys ? "Ocultar" : "Mostrar"}
-                  </button>
+                  <button onClick={() => setShowKeys(!showKeys)} className="text-[9px] font-black uppercase text-blue-600">{showKeys ? "Ocultar" : "Ver"}</button>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wide mb-1 ml-1">URL do Projeto</label>
-                  <input
-                    type={showKeys ? "text" : "password"}
-                    value={localSettings.supabaseUrl || ''}
-                    onChange={(e) => setLocalSettings({...localSettings, supabaseUrl: e.target.value})}
-                    className="w-full p-3 border-2 border-white rounded-xl text-sm font-bold bg-white focus:border-blue-500 outline-none transition-all"
-                  />
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wide mb-1">URL</label>
+                  <input type={showKeys ? "text" : "password"} value={localSettings.supabaseUrl || ''} onChange={(e) => setLocalSettings({...localSettings, supabaseUrl: e.target.value})} className="w-full p-3 border-2 border-white rounded-xl text-sm font-bold bg-white focus:border-blue-500 outline-none" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wide mb-1 ml-1">Chave API (Anon)</label>
-                  <input
-                    type={showKeys ? "text" : "password"}
-                    value={localSettings.supabaseAnonKey || ''}
-                    onChange={(e) => setLocalSettings({...localSettings, supabaseAnonKey: e.target.value})}
-                    className="w-full p-3 border-2 border-white rounded-xl text-sm font-bold bg-white focus:border-blue-500 outline-none transition-all"
-                  />
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wide mb-1">API Key</label>
+                  <input type={showKeys ? "text" : "password"} value={localSettings.supabaseAnonKey || ''} onChange={(e) => setLocalSettings({...localSettings, supabaseAnonKey: e.target.value})} className="w-full p-3 border-2 border-white rounded-xl text-sm font-bold bg-white focus:border-blue-500 outline-none" />
                 </div>
               </div>
             )}
           </section>
 
-          {/* Configurações do Ciclo */}
+          {/* Ciclo e Identificação */}
           <section>
             <div className="flex items-center gap-2 mb-4">
               <AlertCircle size={18} className="text-indigo-600" />
-              <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">Cronograma 2026</h3>
+              <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">Escala e Ciclo</h3>
             </div>
             <div className="grid grid-cols-1 gap-4">
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wide mb-1 ml-1">Início do Ciclo (Apt 101)</label>
-                <input
-                  type="date"
-                  value={localSettings.cycleStartDate}
-                  onChange={(e) => setLocalSettings({ ...localSettings, cycleStartDate: e.target.value })}
-                  className="w-full p-3 border-2 border-gray-100 rounded-xl text-sm font-bold bg-white focus:border-black outline-none transition-all"
-                />
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wide mb-1">Início do Ciclo 2026</label>
+                <input type="date" value={localSettings.cycleStartDate} onChange={(e) => setLocalSettings({ ...localSettings, cycleStartDate: e.target.value })} className="w-full p-3 border-2 border-gray-100 rounded-xl text-sm font-black bg-white focus:border-black outline-none" />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wide mb-1 ml-1">Vincular meu Apartamento</label>
-                <select
-                  value={localSettings.myApartmentId || ''}
-                  onChange={(e) => setLocalSettings({...localSettings, myApartmentId: e.target.value || null})}
-                  className="w-full p-3 border-2 border-gray-100 rounded-xl text-sm font-bold bg-white focus:border-black outline-none transition-all"
-                >
-                  <option value="">Nenhum (Visualização)</option>
-                  {localSettings.apartments.map(apt => (
-                    <option key={apt.id} value={apt.id}>Apt {apt.number}</option>
-                  ))}
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wide mb-1">Este é o meu Apartamento:</label>
+                <select value={localSettings.myApartmentId || ''} onChange={(e) => setLocalSettings({...localSettings, myApartmentId: e.target.value || null})} className="w-full p-3 border-2 border-gray-100 rounded-xl text-sm font-black bg-white focus:border-black outline-none">
+                  <option value="">Apenas Visualizar</option>
+                  {localSettings.apartments.map(apt => <option key={apt.id} value={apt.id}>Apt {apt.number}</option>)}
                 </select>
               </div>
             </div>
           </section>
 
-          {/* Lista de Responsáveis - FUNDO BRANCO PARA MELHOR LEITURA */}
+          {/* Moradores - Fundo Branco Solicitado */}
           <section>
             <div className="flex items-center gap-2 mb-4">
               <ShieldCheck size={18} className="text-emerald-600" />
-              <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">Responsáveis das Unidades</h3>
+              <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">Nomes dos Responsáveis</h3>
             </div>
             <div className="space-y-3">
               {localSettings.apartments.map((apt, index) => (
-                <div key={apt.id} className="flex gap-2 items-center group">
-                  <div className="w-12 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-[10px] font-black text-blue-600 uppercase shrink-0 border border-blue-100">
-                    {apt.number}
+                <div key={apt.id} className="flex gap-2 items-center">
+                  <div className="w-16 h-11 bg-slate-100 rounded-xl flex items-center justify-center text-[10px] font-black text-slate-500 uppercase border border-slate-200 shrink-0">
+                    Apt {apt.number}
                   </div>
                   <input
                     type="text"
-                    placeholder="Nome do responsável"
+                    placeholder="Digite o nome..."
                     value={apt.name}
                     onChange={(e) => handleApartmentChange(index, 'name', e.target.value)}
-                    className="flex-1 p-2.5 border-2 border-gray-100 rounded-xl text-xs text-slate-900 font-black bg-white focus:border-blue-500 outline-none transition-all shadow-sm"
+                    className="flex-1 p-3 border-2 border-gray-200 rounded-xl text-sm text-black font-black bg-white focus:border-blue-500 outline-none shadow-sm placeholder:text-gray-300"
                   />
                 </div>
               ))}
@@ -191,23 +158,11 @@ const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onSave }) =
         </div>
 
         <div className="p-6 border-t border-gray-100 bg-white flex justify-end shrink-0">
-          <button
-            onClick={handleSave}
-            className="flex items-center gap-2 px-12 py-4 rounded-2xl bg-black text-white hover:bg-gray-800 transition-all font-black shadow-xl text-xs uppercase tracking-widest active:scale-95"
-          >
-            <Save size={16} />
-            Salvar Tudo
+          <button onClick={handleSave} className="flex items-center gap-2 px-14 py-4 rounded-2xl bg-black text-white hover:bg-gray-800 transition-all font-black shadow-xl text-xs uppercase tracking-widest active:scale-95">
+            <Save size={16} /> Salvar Alterações
           </button>
         </div>
       </div>
-      <style>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-4px); }
-          75% { transform: translateX(4px); }
-        }
-        .animate-shake { animation: shake 0.2s ease-in-out 2; }
-      `}</style>
     </div>
   );
 };

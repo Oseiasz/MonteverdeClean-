@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { ScheduleItem, Task } from '../types';
 import { formatDate } from '../utils/dateUtils';
-import { Calendar, CheckCircle2, Circle, Clock, MessageSquareText } from 'lucide-react';
+import { Calendar, CheckCircle2, Circle, Clock, MessageSquareText, Lock, AlertCircle, Settings as SettingsIcon } from 'lucide-react';
 
 interface Props {
   scheduleItem: ScheduleItem;
@@ -13,6 +14,7 @@ interface Props {
   onSetPlannedDay: (day: number) => void;
   observations: string;
   onUpdateObservations: (text: string) => void;
+  isAdmin?: boolean;
 }
 
 const DAYS_OF_WEEK = [
@@ -34,7 +36,8 @@ const CurrentDutyCard: React.FC<Props> = ({
   plannedDay,
   onSetPlannedDay,
   observations,
-  onUpdateObservations
+  onUpdateObservations,
+  isAdmin = false
 }) => {
   const completedCount = tasks.filter(t => completedTasks[t.id]).length;
   const allCompleted = completedCount === tasks.length;
@@ -90,38 +93,51 @@ const CurrentDutyCard: React.FC<Props> = ({
               </button>
             ))}
           </div>
-          <p className="text-[10px] text-gray-400 font-bold mt-3 text-center uppercase tracking-tighter">
-            {plannedDay !== null 
-              ? `Você planejou limpar na ${DAYS_OF_WEEK.find(d => d.value === plannedDay)?.label}-feira.` 
-              : 'Selecione um dia para ser lembrado.'}
-          </p>
         </div>
       )}
 
       <div className="space-y-4">
         <div className="flex items-center justify-between mb-2">
            <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Checklist Semanal</h4>
-           <span className="text-xs font-black text-blue-600">{completedCount}/{tasks.length} Concluídas</span>
+           <div className="flex items-center gap-2">
+             {!isAdmin && completedCount > 0 && (
+               <span className="text-[10px] font-bold text-red-400 flex items-center gap-1 uppercase tracking-tighter bg-red-50 px-2 py-0.5 rounded">
+                 <Lock size={10}/> Trava Ativa
+               </span>
+             )}
+             <span className="text-xs font-black text-blue-600">{completedCount}/{tasks.length} Concluídas</span>
+           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {tasks.map((task) => {
             const isCompleted = !!completedTasks[task.id];
+            const cannotUncheck = isCompleted && !isAdmin;
+
             return (
               <button
                 key={task.id}
                 onClick={() => onToggleTask(task.id)}
+                disabled={cannotUncheck}
                 className={`
                   task-button flex items-center gap-4 p-5 rounded-2xl border-2 text-left group
                   ${isCompleted 
-                    ? 'completed bg-green-50 border-green-100' 
+                    ? 'completed bg-green-50 border-green-100 shadow-sm' 
                     : 'bg-white border-gray-100 text-gray-700 hover:border-blue-300 hover:shadow-md'}
+                  ${cannotUncheck ? 'cursor-not-allowed' : 'cursor-pointer'}
                 `}
               >
-                {isCompleted ? (
-                  <CheckCircle2 size={24} className="text-green-500 shrink-0" />
-                ) : (
-                  <Circle size={24} className="text-gray-200 group-hover:text-blue-300 shrink-0" />
-                )}
+                <div className="shrink-0 relative">
+                  {isCompleted ? (
+                    <CheckCircle2 size={24} className="text-green-500" />
+                  ) : (
+                    <Circle size={24} className="text-gray-200 group-hover:text-blue-300" />
+                  )}
+                  {cannotUncheck && (
+                    <div className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
+                       <Lock size={8} className="text-gray-400" />
+                    </div>
+                  )}
+                </div>
                 <span className={`task-text font-bold text-sm ${isCompleted ? 'completed' : ''}`}>
                   {task.label}
                 </span>
@@ -136,24 +152,52 @@ const CurrentDutyCard: React.FC<Props> = ({
           <MessageSquareText size={18} className="text-gray-400" />
           <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Observações ou Feedback</h4>
         </div>
-        <textarea
-          value={observations}
-          onChange={(e) => onUpdateObservations(e.target.value)}
-          placeholder={isMyTurn ? "Ex: Lâmpada do corredor queimada, falta desinfetante..." : "Nenhuma observação registrada."}
-          disabled={!isMyTurn}
-          className={`
-            w-full min-h-[100px] p-4 rounded-2xl border-2 outline-none transition-all font-medium text-sm
-            ${isMyTurn 
-              ? 'bg-white border-gray-100 focus:border-blue-300 focus:shadow-md' 
-              : 'bg-gray-50/50 border-transparent text-gray-500 cursor-default resize-none'}
-          `}
-        />
+        
+        {isMyTurn ? (
+          <div className="relative group">
+            <textarea
+              value={observations}
+              onChange={(e) => onUpdateObservations(e.target.value)}
+              placeholder="Ex: Lâmpada do corredor queimada, falta desinfetante..."
+              className="w-full min-h-[140px] p-5 rounded-2xl border-2 border-blue-100 outline-none transition-all font-bold text-sm bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 placeholder:text-gray-300 shadow-sm"
+            />
+            <div className="absolute bottom-3 right-3 opacity-30 group-focus-within:opacity-100 transition-opacity">
+              <span className="text-[10px] font-black uppercase text-blue-600 tracking-widest">Modo Edição</span>
+            </div>
+          </div>
+        ) : (
+          <div className="group relative">
+            <div className={`
+              w-full min-h-[120px] p-6 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center text-center transition-all
+              ${scheduleItem.isCurrentWeek ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-100'}
+            `}>
+              {observations ? (
+                <p className="text-gray-600 font-bold italic text-sm leading-relaxed">
+                  "{observations}"
+                </p>
+              ) : (
+                <>
+                  <AlertCircle size={20} className="text-amber-400 mb-2" />
+                  <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">
+                    {scheduleItem.isCurrentWeek ? "Selecione seu apartamento nas configurações para editar" : "Nenhuma observação registrada"}
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {!isMyTurn && scheduleItem.isCurrentWeek && (
+           <p className="mt-4 text-[10px] font-black text-amber-600 uppercase tracking-widest text-center flex items-center justify-center gap-2">
+             <Lock size={10}/> Somente o responsável desta semana pode editar.
+           </p>
+        )}
       </div>
 
       {allCompleted && (
         <div className="mt-8 pt-6 border-t border-dashed border-green-200 text-center animate-slide-up-fade">
-           <p className="text-green-600 font-black flex items-center justify-center gap-2">
-             ✨ Limpeza realizada com sucesso!
+           <p className="text-green-600 font-black flex items-center justify-center gap-2 text-sm">
+             ✨ Limpeza realizada com sucesso! Parabéns!
            </p>
         </div>
       )}

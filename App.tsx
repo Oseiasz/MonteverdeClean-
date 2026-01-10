@@ -26,12 +26,12 @@ const DEFAULT_TASKS: Task[] = [
   { id: 'garage', label: 'Limpar Garagem' },
   { id: 'bbq', label: 'Limpar Área da Churrasqueira' },
   { id: 'trash_house', label: 'Limpar a Casinha do Lixo' },
+  { id: 'water_plants', label: 'Regar as Plantas' },
 ];
 
 const App: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>(() => {
     try {
-      // Chave v9 para forçar atualização de cores e segurança
       const saved = localStorage.getItem('condoCleanLocalSettings_v9');
       if (saved) return JSON.parse(saved);
     } catch (e) {
@@ -58,6 +58,7 @@ const App: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [isPreCycle, setIsPreCycle] = useState(false);
   const [isOnline, setIsOnline] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   
   const supabase = useRef<ReturnType<typeof getSupabaseClient>>(null);
 
@@ -74,7 +75,7 @@ const App: React.FC = () => {
       try {
         const { data: setts, error: settsError } = await client.from('app_settings').select('*').eq('id', 'global').maybeSingle();
         if (setts && !settsError) {
-          setSettings(prev => ({ ...prev, apartments: setts.apartments, cycleStartDate: setts.cycle_start_date }));
+          setSettings(prev => ({ ...prev, apartments: setts.apartments, cycle_start_date: setts.cycle_start_date }));
         }
 
         const pastKeys = historySchedule.map(h => h.startDate.toISOString().split('T')[0]);
@@ -105,7 +106,7 @@ const App: React.FC = () => {
       .channel('global_changes')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_settings' }, (payload) => {
         if (payload.new) {
-          setSettings(prev => ({ ...prev, apartments: payload.new.apartments, cycleStartDate: payload.new.cycle_start_date }));
+          setSettings(prev => ({ ...prev, apartments: payload.new.apartments, cycle_start_date: payload.new.cycle_start_date }));
         }
       })
       .subscribe();
@@ -188,8 +189,15 @@ const App: React.FC = () => {
 
   const handleToggleTask = async (taskId: string) => {
     if (!currentDutyItem) return;
+    
+    const currentState = !!completedTasks[taskId];
+    // Se já estiver marcado e não for admin, não permite desmarcar
+    if (currentState && !isAdmin) {
+      return;
+    }
+
     const weekKey = currentDutyItem.startDate.toISOString().split('T')[0];
-    const newState = !completedTasks[taskId];
+    const newState = !currentState;
     setCompletedTasks(prev => ({ ...prev, [taskId]: newState }));
     if (supabase.current) {
       await supabase.current.from('weekly_tasks').upsert({ week_key: weekKey, task_id: taskId, is_completed: newState });
@@ -249,6 +257,7 @@ const App: React.FC = () => {
               </h1>
               <span className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-widest text-gray-400 mt-1">
                 {isOnline ? <><Wifi size={8} className="text-green-500" /> Sincronizado</> : <><WifiOff size={8} className="text-red-400" /> Modo Offline</>}
+                {isAdmin && <span className="ml-2 px-1 bg-yellow-400 text-black rounded">ADM</span>}
               </span>
             </div>
           </div>
@@ -288,6 +297,7 @@ const App: React.FC = () => {
             onSetPlannedDay={handleSetPlannedDay}
             observations={observations}
             onUpdateObservations={handleUpdateObservations}
+            isAdmin={isAdmin}
           />
         )}
 
@@ -315,7 +325,13 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} settings={settings} onSave={handleSaveSettings} />
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+        settings={settings} 
+        onSave={handleSaveSettings}
+        onAdminUnlock={(unlocked) => setIsAdmin(unlocked)}
+      />
     </div>
   );
 };

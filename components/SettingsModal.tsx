@@ -8,9 +8,10 @@ interface Props {
   onClose: () => void;
   settings: AppSettings;
   onSave: (newSettings: AppSettings) => void;
+  onAdminUnlock?: (unlocked: boolean) => void;
 }
 
-const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onSave }) => {
+const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onSave, onAdminUnlock }) => {
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
   const [showKeys, setShowKeys] = useState(false);
   const [password, setPassword] = useState("");
@@ -20,7 +21,9 @@ const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onSave }) =
   useEffect(() => {
     setLocalSettings(settings);
     if (!isOpen) {
-      setIsUnlocked(false);
+      // Manter estado de desbloqueio para não pedir senha toda vez enquanto o app estiver aberto
+      // se desejar que resete, descomente as linhas abaixo
+      // setIsUnlocked(false);
       setPassword("");
       setPassError(false);
       setShowKeys(false);
@@ -33,6 +36,7 @@ const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onSave }) =
     if (password === "Oseias1@") {
       setIsUnlocked(true);
       setPassError(false);
+      onAdminUnlock?.(true);
     } else {
       setPassError(true);
       setTimeout(() => setPassError(false), 2000);
@@ -83,7 +87,8 @@ const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onSave }) =
                     placeholder="Senha do administrador"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className={`w-full p-3 bg-white border-2 rounded-xl text-center font-black text-sm outline-none transition-all ${passError ? 'border-red-400' : 'border-slate-200 focus:border-blue-500'}`}
+                    onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
+                    className={`w-full p-3 bg-white border-2 rounded-xl text-center font-black text-sm outline-none transition-all ${passError ? 'border-red-400 animate-shake' : 'border-slate-200 focus:border-blue-500'}`}
                   />
                   <button onClick={handleUnlock} className="w-full py-3 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg">
                     Desbloquear
@@ -95,7 +100,7 @@ const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onSave }) =
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center gap-1.5 text-blue-700">
                     <Unlock size={14} />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Editável</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">Editável (Modo ADM Ativo)</span>
                   </div>
                   <button onClick={() => setShowKeys(!showKeys)} className="text-[9px] font-black uppercase text-blue-600">{showKeys ? "Ocultar" : "Ver"}</button>
                 </div>
@@ -128,11 +133,12 @@ const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onSave }) =
                   <option value="">Apenas Visualizar</option>
                   {localSettings.apartments.map(apt => <option key={apt.id} value={apt.id}>Apt {apt.number}</option>)}
                 </select>
+                <p className="text-[9px] text-gray-400 font-bold mt-2 uppercase">Defina seu apartamento para poder marcar tarefas e escrever observações.</p>
               </div>
             </div>
           </section>
 
-          {/* Moradores - Fundo Branco Solicitado */}
+          {/* Moradores */}
           <section>
             <div className="flex items-center gap-2 mb-4">
               <ShieldCheck size={18} className="text-emerald-600" />
